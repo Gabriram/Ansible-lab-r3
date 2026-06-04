@@ -3,7 +3,9 @@
   hosts: localhost
   gather_facts: false
   vars:
-    instance_name: Ansible-lab-instance
+    instance_names:
+      - "Ansible-lab-instance-1"
+      - "Ansible-lab-instance-2"
     instance_type: t3.micro
     key_pair: "{{ lookup('env', 'KEY_PAIR_NAME') }}"
     ssh_key_path: "{{ lookup('env', 'SSH_KEY_PATH') }}"
@@ -24,9 +26,9 @@
       ansible.builtin.set_fact:
         al2023_ami_id: "{{ ami_lookup.stdout | trim }}"
 
-    - name: Launch EC2 instance
+    - name: Launch EC2 instances
       amazon.aws.ec2_instance:
-        name: "{{ instance_name }}"
+        name: "{{ item }}"
         key_name: "{{ key_pair }}"
         instance_type: "{{ instance_type }}"
         image_id: "{{ al2023_ami_id }}"
@@ -36,12 +38,13 @@
           assign_public_ip: true
         tags:
           workshop: "{{ lab_tag }}"
-          Name: "{{ instance_name }}"
+          Name: "{{ item }}"
         wait: true
         state: running
+      loop: "{{ instance_names }}"
       register: ec2
 
-    - name: Capture public IP fact
+    - name: Capture public IP facts
       ansible.builtin.set_fact:
         instance_public_ip: "{{ ec2.instances[0].public_ip_address }}"
 
@@ -52,7 +55,7 @@
         timeout: 180
         state: started
 
-    - name: Add instance to in-memory inventory group
+    - name: Add instances to in-memory inventory group
       ansible.builtin.add_host:
         hostname: "{{ instance_public_ip }}"
         groups: app_servers
